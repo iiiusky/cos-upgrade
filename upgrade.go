@@ -31,22 +31,22 @@ import (
 )
 
 type CosUpgrade struct {
-	appName        string
-	currentVersion string
-	cosBucket      string
-	cosLocation    string
-	cosFolder      string
-	tmpBinFile     string
-	debug          bool
+	AppName        string
+	CurrentVersion string
+	CosBucket      string
+	CosLocation    string
+	CosFolder      string
+	TmpBinFile     string
+	Debug          bool
 }
 
-func (upgrade *CosUpgrade) upgrade() string {
+func (upgrade *CosUpgrade) Upgrade() string {
 	var v VersionStruct
 
-	currentVersion, err := version.NewVersion(upgrade.currentVersion)
+	currentVersion, err := version.NewVersion(upgrade.CurrentVersion)
 
 	versionEndPoint := fmt.Sprintf("https://%s.cos.%s.myqcloud.com/%s/%s/version.json",
-		upgrade.cosBucket, upgrade.cosLocation, upgrade.cosFolder, upgrade.appName)
+		upgrade.CosBucket, upgrade.CosLocation, upgrade.CosFolder, upgrade.AppName)
 
 	resp, err := resty.New().R().Get(versionEndPoint)
 	if err != nil {
@@ -71,22 +71,22 @@ func (upgrade *CosUpgrade) upgrade() string {
 
 	releaseTime := time.Unix(v.ReleaseTime, 0)
 
-	if upgrade.debug {
-		fmt.Printf("当前版本为 %s\r\n最新版本为 %s\r\n最新版本发布时间为 %s \r\n", upgrade.currentVersion, v.Version,
+	if upgrade.Debug {
+		fmt.Printf("当前版本为 %s\r\n最新版本为 %s\r\n最新版本发布时间为 %s \r\n", upgrade.CurrentVersion, v.Version,
 			releaseTime.Format("2006-01-02 15:04:05"))
 	}
 
 	downloadStatus, sha256Str := upgrade.downloadRelease()
 
 	if downloadStatus {
-		if sha256Hash, err := GetSHA256FromFile(upgrade.tmpBinFile); err != nil {
+		if sha256Hash, err := GetSHA256FromFile(upgrade.TmpBinFile); err != nil {
 			return "[x] 升级失败,校验文件错误,请联系管理员."
 		} else {
 			if sha256Hash != sha256Str {
 				return "[x] 升级失败,校验文件失败,请联系管理员."
 			}
 
-			if err := os.Rename(upgrade.tmpBinFile, upgrade.appName); err != nil {
+			if err := os.Rename(upgrade.TmpBinFile, upgrade.AppName); err != nil {
 				return "[x] 升级失败,文件重命名失败,请联系管理员."
 			}
 
@@ -101,15 +101,15 @@ func (upgrade *CosUpgrade) upgrade() string {
 // 下载编译好的指定版本文件
 func (upgrade *CosUpgrade) downloadRelease() (bool, string) {
 	releaseBinEndPoint := fmt.Sprintf("https://%s.cos.%s.myqcloud.com/%s/%s/latest/%s_%s_%s/%s",
-		upgrade.cosBucket, upgrade.cosLocation, upgrade.cosFolder, upgrade.appName, upgrade.appName,
-		runtime.GOOS, runtime.GOARCH, upgrade.appName)
+		upgrade.CosBucket, upgrade.CosLocation, upgrade.CosFolder, upgrade.AppName, upgrade.AppName,
+		runtime.GOOS, runtime.GOARCH, upgrade.AppName)
 
 	if "windows" == runtime.GOOS {
 		releaseBinEndPoint = releaseBinEndPoint + ".exe"
 	}
 	releaseBinEndPointSha256 := fmt.Sprintf("%s_%s_%s.sha256", releaseBinEndPoint, runtime.GOOS, runtime.GOARCH)
 
-	if upgrade.debug {
+	if upgrade.Debug {
 		fmt.Println("releaseBinEndPoint:", releaseBinEndPoint)
 		fmt.Println("releaseBinEndPointSha256:", releaseBinEndPointSha256)
 	}
@@ -119,7 +119,7 @@ func (upgrade *CosUpgrade) downloadRelease() (bool, string) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == 200 {
-		f, _ := os.OpenFile(upgrade.tmpBinFile, os.O_CREATE|os.O_WRONLY, 0744)
+		f, _ := os.OpenFile(upgrade.TmpBinFile, os.O_CREATE|os.O_WRONLY, 0744)
 		defer f.Close()
 
 		bar := progressbar.DefaultBytes(
@@ -131,25 +131,25 @@ func (upgrade *CosUpgrade) downloadRelease() (bool, string) {
 		if r, err := resty.New().R().Get(releaseBinEndPointSha256); err == nil && r.StatusCode() == 200 {
 			return true, r.String()
 		} else {
-			if upgrade.debug {
+			if upgrade.Debug {
 				fmt.Println(fmt.Sprintf("请求 %s 发生异常:%v", releaseBinEndPointSha256, err))
 			}
 			return false, ""
 		}
 	} else {
-		if upgrade.debug {
+		if upgrade.Debug {
 			fmt.Println(fmt.Sprintf("请求 %s 返回值为 %s ,退出.", releaseBinEndPoint, resp.Status))
 		}
 		return false, ""
 	}
 }
 
-func (upgrade *CosUpgrade) checkVersion() {
-	fmt.Println(fmt.Sprintf("[+] 当前版本为 v%s", upgrade.currentVersion))
+func (upgrade *CosUpgrade) CheckVersion() {
+	fmt.Println(fmt.Sprintf("[+] 当前版本为 v%s", upgrade.CurrentVersion))
 	var v VersionStruct
 
 	versionEndPoint := fmt.Sprintf("https://%s.cos.%s.myqcloud.com/%s/%s/version.json",
-		upgrade.cosBucket, upgrade.cosLocation, upgrade.cosFolder, upgrade.appName)
+		upgrade.CosBucket, upgrade.CosLocation, upgrade.CosFolder, upgrade.AppName)
 
 	cfg := yacspin.Config{
 		Colors:            []string{"fgGreen"},
@@ -171,7 +171,7 @@ func (upgrade *CosUpgrade) checkVersion() {
 	resp, err := resty.New().R().Get(versionEndPoint)
 	if err != nil {
 		spinner.StopFail()
-		if upgrade.debug {
+		if upgrade.Debug {
 			fmt.Println(fmt.Sprintf("获取远程最新版本错误信息为:%s ", err))
 		}
 		return
@@ -183,7 +183,7 @@ func (upgrade *CosUpgrade) checkVersion() {
 
 	if err != nil {
 		fmt.Println("[x] 获取失败,无法解析远程最新版本信息,请联系管理员.")
-		if upgrade.debug {
+		if upgrade.Debug {
 			fmt.Println(fmt.Sprintf("解析最新版本错误信息为:%s ,原始数据为:%s", err, string(resp.Body())))
 		}
 		return
