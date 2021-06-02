@@ -1,4 +1,4 @@
-module cos-upgrade
+module github.com/iiiusky/cos-upgrade
 
 go 1.16
 
