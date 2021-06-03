@@ -27,6 +27,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -83,6 +84,7 @@ func (upgrade *CosUpgrade) Upgrade() string {
 			return "[x] 升级失败,校验文件错误,请联系管理员."
 		} else {
 			if sha256Hash != sha256Str {
+				_ = os.Remove(upgrade.TmpBinFile)
 				return "[x] 升级失败,校验文件失败,请联系管理员."
 			}
 
@@ -129,7 +131,7 @@ func (upgrade *CosUpgrade) downloadRelease() (bool, string) {
 		_, _ = io.Copy(io.MultiWriter(f, bar), resp.Body)
 
 		if r, err := resty.New().R().Get(releaseBinEndPointSha256); err == nil && r.StatusCode() == 200 {
-			return true, r.String()
+			return true, strings.Split(r.String(), " ")[0]
 		} else {
 			if upgrade.Debug {
 				fmt.Println(fmt.Sprintf("请求 %s 发生异常:%v", releaseBinEndPointSha256, err))
